@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SquareRoot\MathematicalFunctions.csproj" />
+    <ProjectReference Include="..\MathematicalFunctions\MathematicalFunctions.csproj" />
   </ItemGroup>
 
 </Project>
