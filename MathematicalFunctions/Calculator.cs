@@ -1,15 +1,28 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Numerics;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Transactions;
 
 namespace MathematicalFunctions
 {
     public class Calculator
     {
+        public static double Calculate(string expression)
+        {
+            var evaluated = EvaluateExpression(expression).Replace('_', '-');
+            double result = double.Parse(evaluated);
+            if (Math.Round(result * 10e15) / 10e15 != result)
+            {
+                result = Math.Round(result * 10e15) / 10e15;
+            }
+            return result;
+        }
         public static string EvaluateExpression(string expression)
         {
             // trims spaces around operators, but not between numbers: "1. 1 / .2 " => "1. 1/.2"
             expression = expression.Replace(" ", "");
-            //expression = (new Regex("(\\s(?=[^0-9._]))|((?<=[^0-9._])\\s)")).Replace(expression.ToLower().Trim(), "");
             var SimpleOperation = @"(_?\d+\.?\d*){1}{0}{1}(_?\d+\.?\d*){1}";
             
             int i;
@@ -18,7 +31,7 @@ namespace MathematicalFunctions
                 string before = expression.Substring(0, i);
                 string parenthesis = "";
                 while (expression[i] != ')')
-                { // expression.Length < i &&  
+                {
                     i++;
                     if (expression[i] == '(')
                     {
@@ -37,28 +50,7 @@ namespace MathematicalFunctions
                 string after = expression.Substring(i + 1);
                 expression = before + EvaluateExpression(parenthesis) + after;
             }
-#if false
-            foreach (var currentOp in "^*/+-")
-            {
-                var currentRegEx = new Regex(string.Format(SimpleOperation, currentOp, "{1}"));
-                while (currentRegEx.IsMatch(expression))
-                {
-                    Match match = currentRegEx.Match(expression);
-                    string num1 = match.Groups[1].Value;
-                    string op = match.Groups[2].Value;
-                    string num2 = match.Groups[3].Value;
 
-                    string before, after, result;
-                    before = expression.Substring(0, match.Index);
-                    after = expression.Substring(match.Index + match.Length);
-                    result = PerformOperation(num1, num2, op);
-                    expression = before + result + after;
-                    if (String.IsNullOrEmpty(before)&& String.IsNullOrEmpty(after)) {
-                        return result;
-                    }
-                }
-            }
-#endif
             foreach (char currentOp in "EMA")
             {
                 string operationRegexPart = "";
@@ -132,42 +124,62 @@ namespace MathematicalFunctions
             }
             return result.ToString().Replace('-', '_');
         }
-        public static double Sqrt(uint number)
+        public static double Sqrt_Bisection(double number)
         {
-            double sqrt = 0;
-            List<decimal> primeFactors = new();
-            if (number % 2 == 0)
-            {
-                primeFactors.Add(2);
-                sqrt += 2;
+            if (number == 1) {
+                return 1;
             }
-            while (number >= 1)
+            if (number < 0) {
+                throw new ArgumentException();
+            }
+            bool lessThan1 = number < 1;
+            if (lessThan1)
             {
-                uint lowestValue = 0;
-                for (uint i = 10; i > 1; i--)
-                {
-                    if (number % i == 0)
-                    {
-                        lowestValue = i;
-                    }
-                }
-                if (lowestValue == 0) {
+                number = 1 / number;
+            }
+            double r, j;
+            r = j = number / 2;
+            for (int i = 0; i < 100; i++)
+            {
+                j /= 2;
+                double p = r * r;
+                if (p == number) {
                     break;
                 }
-                // todo div by 0
-                number /= lowestValue;
-                if (number != 1)
+                if (p > number)
                 {
-
+                    r -= j;
                 }
-                primeFactors.Add(lowestValue);
-                sqrt += lowestValue;
-                Console.WriteLine("HighestValue: {0}, remainder: {1}", lowestValue, number);
+                else
+                {
+                    r += j;
+                }
             }
-            //sqrt += highestValue / multiplier;
-            Console.WriteLine("Remainder: {0}", number);
-            return sqrt;
+            return lessThan1 ? 1 / r : r;
         }
+
+        public static double Sqrt(double number)
+        {
+            return Root(number, 2);
+        }
+
+        public static double Root(double number, double exponent)
+        {
+            if (number < 0) {
+                throw new ArgumentException();
+            }
+            double x = 1;
+            for (int i = 0; i < 10; i++)
+            {
+                x -= ((x * x - number) / (2 * x));
+                if (x * x == number)
+                {
+                    return number;
+                }
+            }
+            return x;
+        }
+
         private static double Factorial(double number)
         {
             double factorial = 1;
